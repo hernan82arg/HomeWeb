@@ -72,7 +72,7 @@
             <button class="on-button" onclick="controlBulb('living', 'on')">Turn On</button>
             <button class="off-button" onclick="controlBulb('living', 'off')">Turn Off</button>
         </div>
-        <div id="living-room-status" class="status"></div>
+        <div id="living-status" class="status"></div>
     </div>
 
     <div class="bulb-control">
@@ -81,12 +81,13 @@
             <button class="on-button" onclick="controlBulb('room', 'on')">Turn On</button>
             <button class="off-button" onclick="controlBulb('room', 'off')">Turn Off</button>
         </div>
-        <div id="bedroom-status" class="status"></div>
+        <div id="room-status" class="status"></div>
     </div>
 
     <script>
         async function controlBulb(device, action) {
-            const statusElement = document.getElementById(`${device.replace('-', '-')}-status`);
+            console.log(`Attempting to control ${device} - ${action}`);
+            const statusElement = document.getElementById(`${device}-status`);
             statusElement.style.display = 'block';
             
             try {
@@ -94,6 +95,7 @@
                     method: 'POST'
                 });
                 const data = await response.json();
+                console.log('Response:', data);
                 
                 if (data.success) {
                     statusElement.className = 'status success';
@@ -103,6 +105,7 @@
                     statusElement.textContent = data.message;
                 }
             } catch (error) {
+                console.error('Error controlling bulb:', error);
                 statusElement.className = 'status error';
                 statusElement.textContent = 'Failed to control bulb';
             }
