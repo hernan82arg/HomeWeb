@@ -86,33 +86,56 @@
 
     <script>
         async function controlBulb(device, action) {
-            console.log(`Attempting to control ${device} - ${action}`);
+            console.log('=== Button Click Event ===');
+            console.log(`Device: ${device}, Action: ${action}`);
+            
             const statusElement = document.getElementById(`${device}-status`);
+            console.log('Status element found:', statusElement);
+            
             statusElement.style.display = 'block';
+            console.log('Status element displayed');
             
             try {
+                console.log('Making API request...');
                 const response = await fetch(`/control/${device}/${action}`, {
-                    method: 'POST'
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
                 });
+                console.log('API Response received:', response);
+                
+                if (!response.ok) {
+                    console.error('API Error:', response.status, response.statusText);
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
                 const data = await response.json();
-                console.log('Response:', data);
+                console.log('Response data:', data);
                 
                 if (data.success) {
+                    console.log('Operation successful');
                     statusElement.className = 'status success';
                     statusElement.textContent = data.message;
                 } else {
+                    console.log('Operation failed:', data.message);
                     statusElement.className = 'status error';
                     statusElement.textContent = data.message;
                 }
             } catch (error) {
-                console.error('Error controlling bulb:', error);
+                console.error('Error details:', {
+                    name: error.name,
+                    message: error.message,
+                    stack: error.stack
+                });
                 statusElement.className = 'status error';
                 statusElement.textContent = 'Failed to control bulb';
             }
             
-            // Hide status message after 3 seconds
+            console.log('Setting timeout to hide status message');
             setTimeout(() => {
                 statusElement.style.display = 'none';
+                console.log('Status message hidden');
             }, 3000);
         }
     </script>
