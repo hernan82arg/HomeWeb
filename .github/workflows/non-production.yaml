@@ -1,0 +1,94 @@
+name: Build and Push Docker Image
+
+on:
+  pull_request:
+    types: [labeled]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Detect environment label
+        id: detect
+        run: |
+          echo "All labels: ${{ toJSON(github.event.pull_request.labels) }}"
+          for label in $(echo '${{ toJSON(github.event.pull_request.labels.*.name) }}' | jq -r '.[]'); do
+            if [[ "$label" == "development" ]]; then
+              echo "Found environment label: $label"
+              echo "ENVIRONMENT=$label" >> $GITHUB_ENV
+              exit 0
+            fi
+          done
+          echo "No environment label found."
+          exit 1
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Check for other deployments in same environment
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          echo "Checking for other open PRs with '$ENVIRONMENT' label..."
+
+          CURRENT_PR="${{ github.event.pull_request.number }}"
+
+          # Find other PRs with the same environment label
+          OTHER_PRS=$(gh pr list \
+            --label "$ENVIRONMENT" \
+            --state open \
+            --json number \
+            --jq "map(select(.number != $CURRENT_PR)) | .[].number")
+
+          if [[ -n "$OTHER_PRS" ]]; then
+            echo "❌ Another PR is already deploying to '$ENVIRONMENT':"
+            echo ""
+            while IFS= read -r pr_number; do
+              echo "  https://github.com/${{ github.repository }}/pull/$pr_number"
+            done <<< "$OTHER_PRS"
+            echo ""
+            echo "Only one deployment to '$ENVIRONMENT' is allowed at a time."
+            echo ""
+            echo "Removing '$ENVIRONMENT' label from this PR to avoid conflicts..."
+            gh pr edit "$CURRENT_PR" --repo ${{ github.repository }} --remove-label "$ENVIRONMENT"
+            exit 1
+          fi
+
+          echo "✅ No conflicting deployments. Proceeding with $ENVIRONMENT deployment."
+
+      - name: Log in to the Container registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata (tags, labels) for Docker
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=raw,value=latest,enable=${{ github.event_name == 'push' && github.ref_name == 'main' }}
+            type=ref,event=pr
+            type=sha,format=long
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
