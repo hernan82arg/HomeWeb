@@ -64,7 +64,10 @@
     </style>
 </head>
 <body>
-    <h1>Tapo Bulb Control</h1>
+    <div style="display: flex; justify-content: space-between; align-items: center;">
+        <h1>Tapo Bulb Control</h1>
+        <button onclick="logout()" style="background-color: #666; height: fit-content;">Logout</button>
+    </div>
     
     <div class="bulb-control">
         <div class="bulb-name">Living Room Bulb</div>
@@ -97,6 +100,10 @@
                     }
                 });
 
+                if (response.status === 401) {
+                    window.location.href = '/login';
+                    return;
+                }
                 if (!response.ok) {
                     throw new Error(`HTTP error! status: ${response.status}`);
                 }
@@ -118,6 +125,11 @@
             setTimeout(() => {
                 statusElement.style.display = 'none';
             }, 3000);
+        }
+
+        async function logout() {
+            await fetch('/logout', { method: 'POST' });
+            window.location.href = '/login';
         }
     </script>
 </body>
