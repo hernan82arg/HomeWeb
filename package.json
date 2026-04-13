@@ -4,7 +4,8 @@
   "description": "Web interface for controlling Tapo bulbs",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "test": "jest"
   },
   "dependencies": {
     "axios": "^1.15.0",
@@ -12,5 +13,9 @@
     "express": "^4.22.1",
     "pino": "^10.3.1",
     "pino-http": "^11.0.0"
+  },
+  "devDependencies": {
+    "jest": "^30.3.0",
+    "supertest": "^7.2.2"
   }
 }
