@@ -1,33 +1,36 @@
 const express = require('express');
 const axios = require('axios');
 const path = require('path');
+const pino = require('pino');
+const pinoHttp = require('pino-http');
 require('dotenv').config();
 
+const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+
 const app = express();
-const port = 3000;
+const port = process.env.PORT || 3000;
 
 // Middleware
 app.use(express.json());
+app.use(pinoHttp({ logger }));
 app.use(express.static('public'));
 
 // API configuration
 const API_URL = process.env.API_URL || 'http://localhost:8000';
+const DEVICE_TYPE = process.env.DEVICE_TYPE || 'l530';
 let sessionId = null;
 
 // Login to get session ID
 async function login() {
     try {
-        console.log('Attempting to login to API...');
+        logger.info('Attempting to login to API');
         const response = await axios.post(`${API_URL}/login`, {
             password: process.env.API_PASSWORD || 'potatoes'
         });
         sessionId = response.data;
-        console.log('Successfully logged in, session ID:', sessionId);
+        logger.info('Successfully logged in');
     } catch (error) {
-        console.error('Login failed:', error.message);
-        if (error.response) {
-            console.error('API Response:', error.response.data);
-        }
+        logger.error({ err: error.message, response: error.response?.data }, 'Login failed');
     }
 }
 
@@ -36,34 +39,32 @@ login();
 
 // Control bulb endpoint
 app.post('/control/:device/:action', async (req, res) => {
-    console.log(`Received control request for ${req.params.device} - ${req.params.action}`);
-    
+    const { device, action } = req.params;
+    req.log.info({ device, action }, 'Control request received');
+
     if (!sessionId) {
-        console.log('No session ID, attempting to login...');
+        req.log.warn('No session ID, attempting to login');
         await login();
     }
 
     try {
-        const { device, action } = req.params;
-        console.log(`Making API request to ${API_URL}/actions/l530/${action}?device=${device}`);
-        
-        const response = await axios.get(`${API_URL}/actions/l530/${action}?device=${device}`, {
+        const url = `${API_URL}/actions/${DEVICE_TYPE}/${action}?device=${device}`;
+        req.log.info({ url }, 'Making API request');
+
+        const response = await axios.get(url, {
             headers: {
                 'Authorization': `Bearer ${sessionId}`
             }
         });
-        
-        console.log('API response:', response.data);
+
+        req.log.info({ apiResponse: response.data }, 'API request successful');
         res.json({ success: true, message: `Bulb ${device} turned ${action}` });
     } catch (error) {
-        console.error('Control failed:', error.message);
-        if (error.response) {
-            console.error('API Response:', error.response.data);
-        }
+        req.log.error({ err: error.message, response: error.response?.data }, 'Control failed');
         res.status(500).json({ success: false, message: 'Failed to control bulb' });
     }
 });
 
 app.listen(port, () => {
-    console.log(`Web interface running at http://localhost:${port}`);
-}); 
+    logger.info({ port }, 'Web interface running');
+});
