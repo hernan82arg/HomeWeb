@@ -79,6 +79,43 @@ describe('POST /control/:device/:action', () => {
     });
 });
 
+describe('GET /healthcheck', () => {
+    const originalPassword = process.env.API_PASSWORD;
+
+    afterEach(() => {
+        process.env.API_PASSWORD = originalPassword;
+    });
+
+    test('returns 200 when API authenticates successfully', async () => {
+        process.env.API_PASSWORD = 'test-password';
+        axios.post.mockResolvedValue({ data: 'session-id' });
+
+        const res = await request(app).get('/healthcheck');
+
+        expect(res.status).toBe(200);
+        expect(res.body).toEqual({ status: 'ok' });
+    });
+
+    test('returns 503 when API_PASSWORD is not set', async () => {
+        delete process.env.API_PASSWORD;
+
+        const res = await request(app).get('/healthcheck');
+
+        expect(res.status).toBe(503);
+        expect(res.body).toEqual({ status: 'error', message: 'API_PASSWORD not configured' });
+    });
+
+    test('returns 503 when API authentication fails', async () => {
+        process.env.API_PASSWORD = 'wrong-password';
+        axios.post.mockRejectedValue(new Error('Unauthorized'));
+
+        const res = await request(app).get('/healthcheck');
+
+        expect(res.status).toBe(503);
+        expect(res.body).toEqual({ status: 'error', message: 'API authentication failed' });
+    });
+});
+
 describe('GET / (static files)', () => {
     test('serves index.html', async () => {
         const res = await request(app).get('/');

@@ -70,6 +70,23 @@ app.post('/control/:device/:action', async (req, res) => {
     }
 });
 
+// Health check endpoint
+app.get('/healthcheck', async (req, res) => {
+    if (!process.env.API_PASSWORD) {
+        return res.status(503).json({ status: 'error', message: 'API_PASSWORD not configured' });
+    }
+
+    try {
+        await axios.post(`${API_URL}/login`, {
+            password: process.env.API_PASSWORD
+        });
+        res.json({ status: 'ok' });
+    } catch (error) {
+        req.log.error({ err: error.message }, 'Health check failed');
+        res.status(503).json({ status: 'error', message: 'API authentication failed' });
+    }
+});
+
 if (require.main === module) {
     login();
     app.listen(port, () => {
