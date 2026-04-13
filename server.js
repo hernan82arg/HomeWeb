@@ -34,9 +34,6 @@ async function login() {
     }
 }
 
-// Initialize login
-login();
-
 // Control bulb endpoint
 app.post('/control/:device/:action', async (req, res) => {
     const { device, action } = req.params;
@@ -65,6 +62,11 @@ app.post('/control/:device/:action', async (req, res) => {
     }
 });
 
-app.listen(port, () => {
-    logger.info({ port }, 'Web interface running');
-});
+if (require.main === module) {
+    login();
+    app.listen(port, () => {
+        logger.info({ port }, 'Web interface running');
+    });
+}
+
+module.exports = { app, login };
