@@ -25,7 +25,7 @@ async function login() {
     try {
         logger.info('Attempting to login to API');
         const response = await axios.post(`${API_URL}/login`, {
-            password: process.env.API_PASSWORD || 'potatoes'
+            password: process.env.API_PASSWORD
         });
         sessionId = response.data;
         logger.info('Successfully logged in');
@@ -34,10 +34,18 @@ async function login() {
     }
 }
 
+const VALID_ACTIONS = ['on', 'off'];
+const VALID_DEVICES = ['living', 'room'];
+
 // Control bulb endpoint
 app.post('/control/:device/:action', async (req, res) => {
     const { device, action } = req.params;
     req.log.info({ device, action }, 'Control request received');
+
+    if (!VALID_DEVICES.includes(device) || !VALID_ACTIONS.includes(action)) {
+        req.log.warn({ device, action }, 'Invalid device or action');
+        return res.status(400).json({ success: false, message: 'Invalid device or action' });
+    }
 
     if (!sessionId) {
         req.log.warn('No session ID, attempting to login');

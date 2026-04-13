@@ -41,6 +41,28 @@ describe('POST /control/:device/:action', () => {
         });
     });
 
+    test('returns 400 for invalid device', async () => {
+        const res = await request(app).post('/control/kitchen/on');
+
+        expect(res.status).toBe(400);
+        expect(res.body).toEqual({
+            success: false,
+            message: 'Invalid device or action',
+        });
+        expect(axios.get).not.toHaveBeenCalled();
+    });
+
+    test('returns 400 for invalid action', async () => {
+        const res = await request(app).post('/control/living/restart');
+
+        expect(res.status).toBe(400);
+        expect(res.body).toEqual({
+            success: false,
+            message: 'Invalid device or action',
+        });
+        expect(axios.get).not.toHaveBeenCalled();
+    });
+
     test('forwards device and action to upstream API', async () => {
         axios.post.mockResolvedValue({ data: 'fake-session-id' });
         axios.get.mockResolvedValue({ data: { ok: true } });
