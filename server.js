@@ -111,21 +111,34 @@ app.post('/control/:device/:action', requireAuth, async (req, res) => {
         await apiLogin();
     }
 
-    try {
-        const url = `${API_URL}/actions/${DEVICE_TYPE}/${action}?device=${device}`;
-        req.log.info({ url }, 'Making API request');
+    const url = `${API_URL}/actions/${DEVICE_TYPE}/${action}?device=${device}`;
 
-        const response = await axios.get(url, {
-            headers: {
-                'Authorization': `Bearer ${apiSessionId}`
+    for (let attempt = 0; attempt < 2; attempt++) {
+        try {
+            req.log.info({ url, attempt }, 'Making API request');
+
+            const response = await axios.get(url, {
+                headers: {
+                    'Authorization': `Bearer ${apiSessionId}`
+                }
+            });
+
+            req.log.info({ apiResponse: response.data }, 'API request successful');
+            return res.json({ success: true, message: `Bulb ${device} turned ${action}` });
+        } catch (error) {
+            const isSessionError = error.response?.data?.includes?.('SessionTimeout') ||
+                error.response?.status === 401;
+
+            if (isSessionError && attempt === 0) {
+                req.log.warn('API session expired, re-authenticating');
+                apiSessionId = null;
+                await apiLogin();
+                continue;
             }
-        });
 
-        req.log.info({ apiResponse: response.data }, 'API request successful');
-        res.json({ success: true, message: `Bulb ${device} turned ${action}` });
-    } catch (error) {
-        req.log.error({ err: error.message, response: error.response?.data }, 'Control failed');
-        res.status(500).json({ success: false, message: 'Failed to control bulb' });
+            req.log.error({ err: error.message, response: error.response?.data }, 'Control failed');
+            return res.status(500).json({ success: false, message: 'Failed to control bulb' });
+        }
     }
 });
 

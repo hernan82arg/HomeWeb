@@ -122,6 +122,26 @@ describe('POST /control/:device/:action', () => {
         expect(axios.get).not.toHaveBeenCalled();
     });
 
+    test('retries after session timeout', async () => {
+        const authedAgent = request.agent(app);
+        await authenticateAgent(authedAgent);
+
+        axios.post.mockResolvedValue({ data: 'fake-session-id' });
+        await apiLogin();
+
+        // First call fails with SessionTimeout, second succeeds after re-login
+        axios.get
+            .mockRejectedValueOnce({ response: { status: 500, data: 'Tapo: SessionTimeout' } })
+            .mockResolvedValueOnce({ data: { ok: true } });
+        axios.post.mockResolvedValue({ data: 'new-session-id' });
+
+        const res = await authedAgent.post('/control/living/on');
+
+        expect(res.status).toBe(200);
+        expect(axios.get).toHaveBeenCalledTimes(2);
+        expect(axios.post).toHaveBeenCalled();
+    });
+
     test('forwards device and action to upstream API', async () => {
         const authedAgent = request.agent(app);
         await authenticateAgent(authedAgent);
