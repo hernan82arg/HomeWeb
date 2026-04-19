@@ -127,7 +127,8 @@ app.post('/control/:device/:action', requireAuth, async (req, res) => {
             return res.json({ success: true, message: `Bulb ${device} turned ${action}` });
         } catch (error) {
             const isSessionError = error.response?.data?.includes?.('SessionTimeout') ||
-                error.response?.status === 401;
+                error.response?.status === 401 ||
+                error.response?.status === 403;
 
             if (isSessionError && attempt === 0) {
                 req.log.warn('API session expired, re-authenticating');
